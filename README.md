@@ -73,5 +73,3 @@ python test.py
 5. Open a Pull Request
 
 ---
-
-**Last Updated**: December 2024
