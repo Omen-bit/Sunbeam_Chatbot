@@ -1,72 +1,80 @@
 import streamlit as st
 
 if "messages" not in st.session_state:
-    st.session_state.messages=[]
+    st.session_state.messages = []
 
-if "user_chat_in" not in st.session_state:
-    st.session_state.user_chat_in= ""
+if "chat_text" not in st.session_state:
+    st.session_state.chat_text = ""
+
+if "prefill_text" not in st.session_state:
+    st.session_state.prefill_text = ""
 
 def initial_containers():
-    with st.container(border=False,height="content",width="content",):
-        with st.container(border=True,width="content"):
-            with st.chat_message("ai"):
+    with st.container():
+        with st.chat_message("ai"):
+            with st.container(border=True):
                 st.write("Want to chat about sunbeam? I'm an Ai chatbot here to help you find your way")
 
-        with st.container(border=True,height="content",width="content"):
-                st.write("Ask me or select an option below 👇")
+        with st.container(border=True):
+            st.write("Ask me or select an option below 👇")
 
-        col1,col2=st.columns(2)
+        col1, col2 = st.columns(2)
 
-        with col1 :
-            if st.button("📖 Know about sunbeam",width="stretch"):
-                st.session_state.user_chat_in="Know about sunbeam"
-                    
-        with col2 :
-            if st.button("🔎 Know about courses",width="stretch"):
-                st.session_state.user_chat_in="Know about courses"
+        with col1:
+            if st.button("📖 Know about sunbeam", use_container_width=True):
+                st.session_state.prefill_text = "Know about sunbeam"
 
-        with col1 :
-            if st.button("📈 know Placement stats",width="stretch"):
-                st.session_state.user_chat_in="know Placement stats"
-            
-        with col2 :
-            if st.button("💡 Internship options",width="stretch"):
-                st.session_state.user_chat_in="Internship options"
+        with col2:
+            if st.button("🔎 Know about courses", use_container_width=True):
+                st.session_state.prefill_text = "Know about courses"
+
+        with col1:
+            if st.button("📈 know Placement stats", use_container_width=True):
+                st.session_state.prefill_text = "know Placement stats"
+
+        with col2:
+            if st.button("💡 Internship options", use_container_width=True):
+                st.session_state.prefill_text = "Internship options"
 
 def initial_sidebar():
     with st.sidebar:
-        st.title("Sections",width="stretch",text_alignment="center")
-
+        st.title("🤖 Sunbeam Chatbot", text_alignment="center")
         st.divider()
 
-        if st.button("Chatbot",width="stretch"):
-            pass
+        col1, col2 = st.columns([0.2, 0.8])
 
-        if st.button("Sources",width="stretch"):
-            pass
+        with col1:
+            st.image("public/chatbot_icon.png", width=50)
+        with col2:
+            st.button("Chatbot", use_container_width=True)
 
-        if st.button("Analytics",width="stretch"):
-            pass
+        with col1:
+            st.image("public/analytics_icon.png", width=38)
+        with col2:
+            st.button("Analytics", use_container_width=True)
 
+        with col1:
+            st.image("public/source.png", width=40)
+        with col2:
+            st.button("Source", use_container_width=True)
 
 st.title("🤖 SunBot")
 
 initial_containers()
 initial_sidebar()
 
-user_input=st.chat_input("Ask me anything",key="user_chat_in")
+if st.session_state.prefill_text:
+    st.session_state.chat_text = st.session_state.prefill_text
+    st.session_state.prefill_text = ""
+
+user_input = st.chat_input("Ask me anything", key="chat_text")
 
 if user_input:
-    st.session_state.messages.append({
-        "role" : "user",
-        "content" : user_input
-    })
-    st.session_state.user_chat_in=""
-    
+    st.session_state.messages.append(
+        {"role": "user", "content": user_input}
+    )
 
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
-
-    
-
+with st.container():
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
