@@ -6,40 +6,37 @@ from collections import defaultdict
 BASE_URL = "http://127.0.0.1:1234/v1"
 API_KEY = "lm_studio"
 
-embeddings_model = init_embeddings(
-    model="text-embedding-nomic-embed-text-v1.5-embedding",
+CHROMA_DIR = "chroma_db"
+COLLECTION_NAME = "sunbeam_knowledge"
+
+EMBED_MODEL = "text-embedding-nomic-embed-text-v1.5-embedding"
+LLM_MODEL = "openai/gpt-oss-20b"
+
+
+_embeddings_model = init_embeddings(
+    model=EMBED_MODEL,
     provider="openai",
     base_url=BASE_URL,
     api_key=API_KEY,
     check_embedding_ctx_length=False
 )
 
-vectordb = Chroma(
-    collection_name="sunbeam_knowledge",
-    embedding_function=embeddings_model,
-    persist_directory="chroma_db"
+_vectordb = Chroma(
+    collection_name=COLLECTION_NAME,
+    embedding_function=_embeddings_model,
+    persist_directory=CHROMA_DIR
 )
 
-print("Total vectors:", vectordb._collection.count())
-
-llm = init_chat_model(
-    model="openai/gpt-oss-20b",
+_llm = init_chat_model(
+    model=LLM_MODEL,
     model_provider="openai",
     base_url=BASE_URL,
     api_key=API_KEY,
     temperature=0.2
 )
 
-while True:
-    query = input("\nAsk your question (type 'exit' to quit): ").strip()
-
-    if query.lower() == "exit":
-        print("Exiting chatbot.")
-        break
-
-    print("\nUser Question:", query)
-
-    docs = vectordb.similarity_search(query, k=12)
+def ask_question(query: str) -> str:
+    docs = _vectordb.similarity_search(query, k=12)
 
     grouped = defaultdict(list)
 
@@ -53,6 +50,9 @@ while True:
         section = d.metadata.get("section", "General")
 
         grouped[(course, section)].append(content)
+
+    if not grouped:
+        return "Sorry, I could not find relevant information for your question."
 
     context_blocks = []
 
@@ -80,7 +80,6 @@ Question:
 Answer:
 """
 
-    response = llm.invoke(prompt)
+    response = _llm.invoke(prompt)
 
-    print("\n===== FINAL REFINED ANSWER =====\n")
-    print(response.content)
+    return response.content

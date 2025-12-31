@@ -1,4 +1,5 @@
 import streamlit as st
+from retrieval.qa_engine import ask_question   
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -9,11 +10,14 @@ if "chat_text" not in st.session_state:
 if "prefill_text" not in st.session_state:
     st.session_state.prefill_text = ""
 
+
 def initial_containers():
     with st.container():
         with st.chat_message("ai"):
             with st.container(border=True):
-                st.write("Want to chat about sunbeam? I'm an Ai chatbot here to help you find your way")
+                st.write(
+                    "Want to chat about sunbeam? I'm an Ai chatbot here to help you find your way"
+                )
 
         with st.container(border=True):
             st.write("Ask me or select an option below 👇")
@@ -35,6 +39,7 @@ def initial_containers():
         with col2:
             if st.button("💡 Internship options", use_container_width=True):
                 st.session_state.prefill_text = "Internship options"
+
 
 def initial_sidebar():
     with st.sidebar:
@@ -58,6 +63,7 @@ def initial_sidebar():
         with col2:
             st.button("Source", use_container_width=True)
 
+
 st.title("🤖 SunBot")
 
 initial_containers()
@@ -72,6 +78,12 @@ user_input = st.chat_input("Ask me anything", key="chat_text")
 if user_input:
     st.session_state.messages.append(
         {"role": "user", "content": user_input}
+    )
+
+    answer = ask_question(user_input)
+
+    st.session_state.messages.append(
+        {"role": "assistant", "content": answer}
     )
 
 with st.container():

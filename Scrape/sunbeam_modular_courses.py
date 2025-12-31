@@ -43,7 +43,6 @@ def run_modular_courses_scraper():
 
         wait = WebDriverWait(driver, 40)
 
-        # ---------- OPEN COURSE LIST ----------
         driver.get("https://sunbeaminfo.in/modular-courses-home")
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "c_cat_box")))
 
@@ -53,7 +52,6 @@ def run_modular_courses_scraper():
             link = card.find_element(By.CSS_SELECTOR, "a.c_cat_more_btn").get_attribute("href")
             courses.append((title, link))
 
-        # ---------- PROCESS EACH COURSE ----------
         for course_title, course_url in courses:
             driver.get(course_url)
             wait.until(EC.presence_of_element_located((By.CLASS_NAME, "course_info")))
@@ -62,7 +60,6 @@ def run_modular_courses_scraper():
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(2)
 
-            # ---------- BASIC INFO ----------
             info_box = driver.find_element(By.CLASS_NAME, "course_info")
             basic_text = extract_all_text(info_box)
 
@@ -75,7 +72,6 @@ def run_modular_courses_scraper():
                 "scraper": "modular"
             })
 
-            # ---------- ACCORDION SECTIONS ----------
             panels = driver.find_elements(By.CSS_SELECTOR, ".panel.panel-default")
 
             for panel in panels:
@@ -87,7 +83,7 @@ def run_modular_courses_scraper():
                     time.sleep(0.5)
 
                     driver.execute_script("arguments[0].click();", header)
-                    time.sleep(1.2)  # IMPORTANT: wait for animation
+                    time.sleep(1.2)  
 
                     body = panel.find_element(By.CLASS_NAME, "panel-body")
 
