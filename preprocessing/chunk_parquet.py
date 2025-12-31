@@ -5,8 +5,9 @@ def run_chunk_parquet():
     import uuid
     import os
 
-    INPUT_PARQUET = "data/sunbeam_raw_20251231_103720.parquet"
-    OUTPUT_PARQUET = "data/sunbeam_chunks.parquet"
+    INPUT_PARQUET = "..\\data\\sunbeam_raw_20251231_151046.parquet"
+    OUTPUT_PARQUET = "..\\data\\sunbeam_chunks.parquet"
+
 
     MIN_CHARS = 150
     MAX_SINGLE_CHUNK = 900
@@ -80,3 +81,6 @@ def run_chunk_parquet():
         print(f"Saved to           : {OUTPUT_PARQUET}")
 
     chunk_parquet()
+
+if __name__ == "__main__":
+    run_chunk_parquet()
