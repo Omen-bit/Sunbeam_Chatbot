@@ -1,40 +1,58 @@
 from langchain_chroma import Chroma
 from langchain.chat_models import init_chat_model
-from langchain.embeddings import init_embeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from collections import defaultdict
+import os
+from dotenv import load_dotenv
 
-BASE_URL = "http://127.0.0.1:1234/v1"
-API_KEY = "lm_studio"
+# Load environment variables
+load_dotenv()
 
+# =========================
+# CONFIG
+# =========================
 CHROMA_DIR = "chroma_db"
 COLLECTION_NAME = "sunbeam_knowledge"
 
-EMBED_MODEL = "text-embedding-nomic-embed-text-v1.5-embedding"
-LLM_MODEL = "openai/gpt-oss-20b"
+# Local embeddings (NO API calls)
+EMBED_MODEL = "nomic-ai/nomic-embed-text-v1.5"
 
+# Groq LLM
+LLM_MODEL = "openai/gpt-oss-120b"
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-_embeddings_model = init_embeddings(
-    model=EMBED_MODEL,
-    provider="openai",
-    base_url=BASE_URL,
-    api_key=API_KEY,
-    check_embedding_ctx_length=False
+# =========================
+# EMBEDDINGS (LOCAL)
+# =========================
+_embeddings_model = HuggingFaceEmbeddings(
+    model_name="nomic-ai/nomic-embed-text-v1.5",
+    model_kwargs={"trust_remote_code": True}
 )
 
+# =========================
+# VECTOR STORE
+# =========================
 _vectordb = Chroma(
     collection_name=COLLECTION_NAME,
     embedding_function=_embeddings_model,
     persist_directory=CHROMA_DIR
 )
 
+# =========================
+# LLM (GROQ)
+# =========================
 _llm = init_chat_model(
     model=LLM_MODEL,
     model_provider="openai",
-    base_url=BASE_URL,
-    api_key=API_KEY,
+    base_url=GROQ_BASE_URL,
+    api_key=GROQ_API_KEY,
     temperature=0.2
 )
 
+# =========================
+# QA FUNCTION
+# =========================
 def ask_question(query: str) -> str:
     docs = _vectordb.similarity_search(query, k=12)
 
@@ -42,13 +60,11 @@ def ask_question(query: str) -> str:
 
     for d in docs:
         content = d.page_content.strip()
-
         if len(content) < 40:
             continue
 
         course = d.metadata.get("course", "Unknown Course")
         section = d.metadata.get("section", "General")
-
         grouped[(course, section)].append(content)
 
     if not grouped:
@@ -81,5 +97,4 @@ Answer:
 """
 
     response = _llm.invoke(prompt)
-
     return response.content

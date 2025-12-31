@@ -13,8 +13,8 @@ if "prefill_text" not in st.session_state:
 
 def initial_containers():
     with st.container():
-        with st.chat_message("ai"):
-            with st.container(border=True):
+        with st.container(border=True):
+            with st.chat_message("ai"):
                 st.write(
                     "Want to chat about sunbeam? I'm an Ai chatbot here to help you find your way"
                 )
@@ -64,7 +64,17 @@ def initial_sidebar():
             st.button("Source", use_container_width=True)
 
 
-st.title("🤖 SunBot")
+# st.title("🤖 SunBot")
+col1, col2 = st.columns([0.10, 0.90], gap="small")
+
+with col1:
+    st.image("public/chat_icon.png", width=70)
+
+with col2:
+    st.markdown(
+        "<h1 style='margin-top:-17px;'>SunBot</h1>",
+        unsafe_allow_html=True
+    )
 
 initial_containers()
 initial_sidebar()
