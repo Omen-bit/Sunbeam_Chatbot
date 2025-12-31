@@ -1,6 +1,5 @@
 def run_modular_courses_scraper():
     import time
-    import re
     import io
     from contextlib import redirect_stdout
 
@@ -12,15 +11,25 @@ def run_modular_courses_scraper():
     from selenium.webdriver.support import expected_conditions as EC
     from webdriver_manager.chrome import ChromeDriverManager
 
+    buffer = io.StringIO()
+    documents = []
 
-    buffer = io.StringIO()   
+    with redirect_stdout(buffer):
 
-    with redirect_stdout(buffer):   
-
-        def clean_text(text):
-            text = re.sub(r'CLICK TO REGISTER', '', text, flags=re.IGNORECASE)
-            text = re.sub(r'\n{3,}', '\n\n', text)
-            return text.strip()
+        def extract_all_text(container):
+            """
+            Extracts text from p, li, td, th in correct order
+            """
+            texts = []
+            elements = container.find_elements(
+                By.XPATH,
+                ".//*[self::p or self::li or self::td or self::th]"
+            )
+            for el in elements:
+                t = el.text.strip()
+                if t:
+                    texts.append(t)
+            return "\n".join(texts)
 
         options = Options()
         options.add_argument("--headless=new")
@@ -32,8 +41,9 @@ def run_modular_courses_scraper():
             options=options
         )
 
-        wait = WebDriverWait(driver, 30)
+        wait = WebDriverWait(driver, 40)
 
+        # ---------- OPEN COURSE LIST ----------
         driver.get("https://sunbeaminfo.in/modular-courses-home")
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "c_cat_box")))
 
@@ -43,112 +53,61 @@ def run_modular_courses_scraper():
             link = card.find_element(By.CSS_SELECTOR, "a.c_cat_more_btn").get_attribute("href")
             courses.append((title, link))
 
-        def is_basic_info_line(text):
-            keys = [
-                "batch schedule", "schedule :", "duration :",
-                "timings :", "fees :", "course name :"
-            ]
-            return any(k in text.lower() for k in keys)
-
-        SECTION_MAP = {
-            "target audience": "Target Audience",
-            "course introduction": "Target Audience",
-            "syllabus": "Syllabus",
-            "prerequisites": "Prerequisites",
-            "pre-requisites": "Prerequisites",
-            "software setup": "Tools & Setup",
-            "tools & setup": "Tools & Setup",
-            "outcome": "Outcome",
-            "outcomes": "Outcome",
-            "important notes": "Important Notes",
-            "recorded videos": "Video Availability Till Date",
-            "video availability till date": "Video Availability Till Date",
-            "batch schedule": "Batch Schedule"
-        }
-
-        SECTION_ORDER = [
-            "Target Audience", "Syllabus", "Prerequisites",
-            "Tools & Setup", "Outcome", "Important Notes",
-            "Video Availability Till Date", "Batch Schedule"
-        ]
-
+        # ---------- PROCESS EACH COURSE ----------
         for course_title, course_url in courses:
             driver.get(course_url)
             wait.until(EC.presence_of_element_located((By.CLASS_NAME, "course_info")))
+            time.sleep(2)
 
-            basic_info = {}
-            sections = {}
-            seen_text = set()
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(2)
 
+            # ---------- BASIC INFO ----------
             info_box = driver.find_element(By.CLASS_NAME, "course_info")
+            basic_text = extract_all_text(info_box)
 
-            try:
-                h3 = info_box.find_element(By.TAG_NAME, "h3").text
-                if ":" in h3:
-                    k, v = h3.split(":", 1)
-                    basic_info[k.strip()] = v.strip()
-            except:
-                pass
+            documents.append({
+                "content": basic_text,
+                "course": course_title,
+                "section": "Basic Info",
+                "url": course_url,
+                "source": "sunbeam",
+                "scraper": "modular"
+            })
 
-            for p in info_box.find_elements(By.TAG_NAME, "p"):
-                txt = p.text.strip()
-                if ":" in txt:
-                    k, v = txt.split(":", 1)
-                    basic_info[k.strip()] = v.strip()
-
+            # ---------- ACCORDION SECTIONS ----------
             panels = driver.find_elements(By.CSS_SELECTOR, ".panel.panel-default")
+
             for panel in panels:
                 try:
-                    head = panel.find_element(By.CSS_SELECTOR, ".panel-title a")
-                    raw = head.text.strip().lower().replace(":", "")
-                    driver.execute_script("arguments[0].click();", head)
+                    header = panel.find_element(By.CSS_SELECTOR, ".panel-title a")
+                    section_name = header.text.strip()
 
-                    body = WebDriverWait(panel, 10).until(
-                        EC.visibility_of_element_located((By.CLASS_NAME, "panel-body"))
-                    )
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", header)
+                    time.sleep(0.5)
 
-                    content = clean_text(body.text)
-                    if content and content not in seen_text:
-                        seen_text.add(content)
-                        mapped = SECTION_MAP.get(raw, raw.title())
-                        sections.setdefault(mapped, []).append(content)
+                    driver.execute_script("arguments[0].click();", header)
+                    time.sleep(1.2)  # IMPORTANT: wait for animation
 
-                    time.sleep(0.2)
-                except:
-                    pass
+                    body = panel.find_element(By.CLASS_NAME, "panel-body")
 
-            for el in info_box.find_elements(By.XPATH, ".//h4 | .//p | .//li"):
-                txt = clean_text(el.text)
-                if not txt or is_basic_info_line(txt) or txt in seen_text:
+                    section_text = extract_all_text(body)
+
+                    if section_text:
+                        documents.append({
+                            "content": section_text,
+                            "course": course_title,
+                            "section": section_name,
+                            "url": course_url,
+                            "source": "sunbeam",
+                            "scraper": "modular"
+                        })
+
+                except Exception:
                     continue
-                seen_text.add(txt)
-                sections.setdefault("Additional Information", []).append(txt)
 
-            print("\n" + "=" * 100)
-            print(course_title)
-            print()
-
-            BASIC_ORDER = ["Course Name", "Batch Schedule", "Schedule", "Duration", "Timings", "Fees"]
-            for key in BASIC_ORDER:
-                if key in basic_info:
-                    print(f"{key} : {basic_info[key]}\n")
-
-            idx = 1
-            for sec in SECTION_ORDER + ["Additional Information"]:
-                if sec in sections:
-                    print(f"{idx}. {sec}")
-                    print("\n".join(sections[sec]))
-                    print()
-                    idx += 1
+            time.sleep(1)
 
         driver.quit()
-
-    raw_text = buffer.getvalue()
-
-    documents = [
-        block.strip()
-        for block in raw_text.split("=" * 100)
-        if block.strip()
-    ]
 
     return documents
