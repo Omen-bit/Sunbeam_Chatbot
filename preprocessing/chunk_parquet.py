@@ -5,7 +5,7 @@ def run_chunk_parquet():
     import uuid
     import os
 
-    INPUT_PARQUET = "..\\data\\sunbeam_raw_20251231_151046.parquet"
+    INPUT_PARQUET = "..\\data\\sunbeam_raw_20251231_223616.parquet"
     OUTPUT_PARQUET = "..\\data\\sunbeam_chunks.parquet"
 
 
