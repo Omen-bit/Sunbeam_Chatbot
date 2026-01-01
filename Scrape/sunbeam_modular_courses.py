@@ -1,8 +1,5 @@
 def run_modular_courses_scraper():
     import time
-    import io
-    from contextlib import redirect_stdout
-
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.common.by import By
@@ -11,66 +8,69 @@ def run_modular_courses_scraper():
     from selenium.webdriver.support import expected_conditions as EC
     from webdriver_manager.chrome import ChromeDriverManager
 
-    buffer = io.StringIO()
     documents = []
 
-    with redirect_stdout(buffer):
+    def extract_all_text(container):
+        texts = []
+        elements = container.find_elements(
+            By.XPATH,
+            ".//*[self::p or self::li or self::td or self::th or self::div or self::span]"
+        )
+        for el in elements:
+            t = el.text.strip()
+            if t and len(t) > 20:
+                texts.append(t)
+        return "\n".join(dict.fromkeys(texts))
 
-        def extract_all_text(container):
-            """
-            Extracts text from p, li, td, th in correct order
-            """
-            texts = []
-            elements = container.find_elements(
-                By.XPATH,
-                ".//*[self::p or self::li or self::td or self::th]"
-            )
-            for el in elements:
-                t = el.text.strip()
-                if t:
-                    texts.append(t)
-            return "\n".join(texts)
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
 
-        options = Options()
-        options.add_argument("--headless=new")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-
-        driver = webdriver.Chrome(
+    def create_driver():
+        return webdriver.Chrome(
             service=Service(ChromeDriverManager().install()),
             options=options
         )
 
-        wait = WebDriverWait(driver, 40)
+    index_driver = create_driver()
+    wait = WebDriverWait(index_driver, 20)
 
-        driver.get("https://sunbeaminfo.in/modular-courses-home")
-        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "c_cat_box")))
+    index_driver.get("https://sunbeaminfo.in/modular-courses-home")
+    wait.until(EC.presence_of_element_located((By.CLASS_NAME, "c_cat_box")))
 
-        courses = []
-        for card in driver.find_elements(By.CLASS_NAME, "c_cat_box"):
-            title = card.find_element(By.CSS_SELECTOR, ".c_info h4").text.strip()
-            link = card.find_element(By.CSS_SELECTOR, "a.c_cat_more_btn").get_attribute("href")
-            courses.append((title, link))
+    courses = []
+    for card in index_driver.find_elements(By.CLASS_NAME, "c_cat_box"):
+        title = card.find_element(By.CSS_SELECTOR, ".c_info h4").text.strip()
+        link = card.find_element(By.CSS_SELECTOR, "a.c_cat_more_btn").get_attribute("href")
+        courses.append((title, link))
 
-        for course_title, course_url in courses:
+    index_driver.quit()
+
+    for course_title, course_url in courses:
+        driver = None
+        try:
+            driver = create_driver()
+            wait = WebDriverWait(driver, 20)
+
             driver.get(course_url)
             wait.until(EC.presence_of_element_located((By.CLASS_NAME, "course_info")))
-            time.sleep(2)
-
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(2)
 
             info_box = driver.find_element(By.CLASS_NAME, "course_info")
             basic_text = extract_all_text(info_box)
 
-            documents.append({
-                "content": basic_text,
-                "course": course_title,
-                "section": "Basic Info",
-                "url": course_url,
-                "source": "sunbeam",
-                "scraper": "modular"
-            })
+            if basic_text:
+                documents.append({
+                    "url": course_url,
+                    "content": basic_text,
+                    "char_count": len(basic_text),
+                    "course": course_title,
+                    "section": "Basic Info",
+                    "source": "sunbeam",
+                    "scraper": "modular"
+                })
 
             panels = driver.find_elements(By.CSS_SELECTOR, ".panel.panel-default")
 
@@ -79,31 +79,42 @@ def run_modular_courses_scraper():
                     header = panel.find_element(By.CSS_SELECTOR, ".panel-title a")
                     section_name = header.text.strip()
 
-                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", header)
+                    driver.execute_script(
+                        "arguments[0].scrollIntoView({block:'center'});", header
+                    )
                     time.sleep(0.5)
-
                     driver.execute_script("arguments[0].click();", header)
-                    time.sleep(1.2)  
+                    time.sleep(2.5)
 
                     body = panel.find_element(By.CLASS_NAME, "panel-body")
-
                     section_text = extract_all_text(body)
 
-                    if section_text:
-                        documents.append({
-                            "content": section_text,
-                            "course": course_title,
-                            "section": section_name,
-                            "url": course_url,
-                            "source": "sunbeam",
-                            "scraper": "modular"
-                        })
+                    if not section_text:
+                        section_text = body.text.strip()
+
+                    if not section_text:
+                        continue
+
+                    documents.append({
+                        "url": course_url,
+                        "content": section_text,
+                        "char_count": len(section_text),
+                        "course": course_title,
+                        "section": section_name,
+                        "source": "sunbeam",
+                        "scraper": "modular"
+                    })
 
                 except Exception:
                     continue
 
-            time.sleep(1)
+        except Exception:
+            continue
 
-        driver.quit()
+        finally:
+            if driver:
+                driver.quit()
+
+        time.sleep(1)
 
     return documents
